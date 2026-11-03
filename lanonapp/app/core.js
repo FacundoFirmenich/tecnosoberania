@@ -6,23 +6,23 @@
   if (root) root.LaNonCore = core;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
-  const VERSION = 8;
+  const VERSION = 9;
   const EMPTY = () => ({ schema: VERSION,
     profile: {name:'', persona:'nona', proactivity:'equilibrada'},
     tasks:[], objects:[], medications:[], habits:[], transactions:[], positions:[],
-    contacts:[], content:[], grants:[], events:[], incidents:[],
+    contacts:[], content:[], grants:[], events:[], incidents:[], scenarios:[], audit:{},
     preferences:{voice:false, screenReader:false}, createdAt:new Date().toISOString() });
   function uuid() { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); }
   function plain(v) { return String(v == null ? '' : v).trim(); }
   function normalize(raw) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Number(raw.schema)>VERSION) throw Error('Formato no compatible');
     const init=EMPTY(), out={...init,...raw};
-    for (const key of ['tasks','objects','medications','habits','transactions','positions','contacts','content','grants','events','incidents']) {
+    for (const key of ['tasks','objects','medications','habits','transactions','positions','contacts','content','grants','events','incidents','scenarios']) {
       if (!Array.isArray(out[key])) throw Error('Colección inválida: '+key);
       if (out[key].length>50000) throw Error('Colección excesiva');
     }
     out.profile={...init.profile,...(raw.profile||{})};
-    out.preferences={...init.preferences,...(raw.preferences||{})};
+    out.preferences={...init.preferences,...(raw.preferences||{})};out.audit=(raw.audit&&typeof raw.audit==='object'&&!Array.isArray(raw.audit))?raw.audit:{};
     out.schema=VERSION;
     return out;
   }
@@ -131,5 +131,11 @@
       message:outstanding?'Hay incidencias locales pendientes. No se ha avisado a contactos externos.':
         due.length?'Hay '+due.length+' tareas vencidas o para hoy.':'No hay obligaciones con vencimiento registradas para hoy.'};
   }
-  return {VERSION,EMPTY,uuid,normalize,addEvent,parseDate,dueTasks,medicationEpisode,medStatus,recordMedication,validateGrant,authorize,projection,moneyTotals,healthFresh,capabilities,escapeHTML,safeWebURL,platformSearch,checkInSituational};
+
+  function decimalMinor(value){const s=String(value).trim(),m=s.match(/^(-?)(\d{1,16})(?:[.,](\d{1,2}))?$/);if(!m)throw Error('Importe decimal inválido, máximo dos decimales');return (m[1]==='-'?-1n:1n)*(BigInt(m[2])*100n+BigInt((m[3]||'').padEnd(2,'0')))}
+  function decimalDisplay(v){v=BigInt(v);let neg=v<0n;if(neg)v=-v;return (neg?'-':'')+(v/100n).toString()+'.'+(v%100n).toString().padStart(2,'0')}
+  function projectionExact(input){const amt=Object.fromEntries(['cash','monthlyIncome','monthlyExpenses','exceptional','reserve'].map(k=>[k,decimalMinor(input[k])]));if(!/^\d{1,3}$/.test(String(input.months)))throw Error('Meses: entero de 0 a 999');let months=BigInt(input.months);if(months>999n||amt.monthlyExpenses<0n||amt.reserve<0n||amt.exceptional<0n)throw Error('Parámetros fuera de dominio');const balance=amt.cash+months*(amt.monthlyIncome-amt.monthlyExpenses)-amt.exceptional;return {balance:decimalDisplay(balance),aboveReserve:decimalDisplay(balance-amt.reserve),netFlow:decimalDisplay(amt.monthlyIncome-amt.monthlyExpenses),kind:'conditional_exact_no_forecast',currency:String(input.currency||'').toUpperCase()};}
+  function classifySharedLink(raw){let u=safeWebURL(String(raw||''));if(!u)return null;let host=new URL(u).hostname.toLowerCase(),kind=host.includes('youtube.com')||host==='youtu.be'?'video':host.includes('facebook.com')?'facebook':host.includes('instagram.com')?'instagram':'link';return {url:u,kind}}
+  function attentionSummary(s){let a=s.audit&&typeof s.audit==='object'?s.audit:{};return Object.entries(a).filter(([k,v])=>/^[a-z]+$/.test(k)&&Number.isInteger(v)&&v>=0).sort((x,y)=>y[1]-x[1]);}
+  return {decimalMinor,decimalDisplay,projectionExact,classifySharedLink,attentionSummary,VERSION,EMPTY,uuid,normalize,addEvent,parseDate,dueTasks,medicationEpisode,medStatus,recordMedication,validateGrant,authorize,projection,moneyTotals,healthFresh,capabilities,escapeHTML,safeWebURL,platformSearch,checkInSituational};
 });
