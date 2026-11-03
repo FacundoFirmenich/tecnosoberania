@@ -1,0 +1,19 @@
+{
+  "name": "LaNonApp · Exocerebro personal",
+  "short_name": "LaNonApp",
+  "description": "Pre-alfa local del Sistema Personal Situacional Escalable",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5f0",
+  "theme_color": "#143f46",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
