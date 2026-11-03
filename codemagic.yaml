@@ -1,0 +1,12 @@
+# For a Codemagic project whose repository root IS LaNonApp.
+workflows:
+  lanonapp-android-debug:
+    name: LaNonApp pre-alpha Android Debug
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    scripts:
+      - name: Build Android APK with checked Gradle distribution
+        script: |
+          bash lanonapp/ci/build_android_debug.sh
+    artifacts:
+      - lanonapp/android/app/build/outputs/apk/debug/*.apk

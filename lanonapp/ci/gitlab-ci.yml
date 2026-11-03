@@ -1,0 +1,15 @@
+# Copy this file to .gitlab-ci.yml at the root of a GitLab mirror.
+stages: [test, build]
+variables:
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  GRADLE_DISTRIBUTIONS: "$CI_PROJECT_DIR/.cache/lanonapp-gradle"
+android_debug:
+  image: ghcr.io/cirruslabs/android-sdk:35
+  stage: build
+  script:
+    - bash ci/build_android_debug.sh
+  artifacts:
+    when: on_success
+    paths:
+      - android/app/build/outputs/apk/debug/app-debug.apk
+    expire_in: 14 days
