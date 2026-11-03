@@ -1,0 +1,22 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const C=require('../app/core.js');
+const newState=()=>C.EMPTY();
+test('estado vacío sin datos sintéticos ni terceros',()=>{const s=newState();assert.equal(s.tasks.length,0);assert.equal(s.contacts.length,0);});
+test('no se conceden privilegios por parentesco',()=>{assert.equal(C.authorize(newState(),'daughter','medication'),false)});
+test('concesión revocada no autoriza',()=>{let g={actor:'x',scopes:['a'],verified:true,revokedAt:'2026-01-01'};assert.equal(C.validateGrant(g,'a'),false)});
+test('sin verificación externa no autoriza',()=>{assert.equal(C.validateGrant({scopes:['a'],verified:false},'a'),false)});
+test('dos negativas explícitas distintas crean UN incidente local sin envío',()=>{
+ const s=newState(),id='rx';s.medications.push({id,name:'pauta',time:'08:00'});
+ const a=C.recordMedication(s,id,'refused',new Date('2026-11-03T12:00:00'), 'a');assert.equal(a.incident,null);
+ const b=C.recordMedication(s,id,'deferred',new Date('2026-11-03T12:01:00'), 'b');assert.ok(b.incident);assert.equal(b.incident.status,'local_intent_only');
+ assert.equal(s.incidents.length,1);C.recordMedication(s,id,'refused',new Date('2026-11-03T12:02:00'), 'c');assert.equal(s.incidents.length,1);
+});
+test('replay idempotente',()=>{const s=newState();s.medications.push({id:'r'});C.recordMedication(s,'r','refused',new Date('2026-11-03T12:00:00'),'once');C.recordMedication(s,'r','refused',new Date('2026-11-03T12:00:01'),'once');assert.equal(C.medStatus(s,'r',new Date('2026-11-03T12:00:00')).negatives,1)});
+test('sin respuesta no cuenta como negativa',()=>{const s=newState();s.medications.push({id:'r'});C.recordMedication(s,'r','unconfirmed',new Date('2026-11-03T12:00:00'));assert.equal(s.incidents.length,0)});
+test('reporte de toma no es verificación externa',()=>{const s=newState();s.medications.push({id:'r'});C.recordMedication(s,'r','taken_self_reported',new Date('2026-11-03T12:00:00'));assert.equal(C.medStatus(s,'r',new Date('2026-11-03T12:00:00')).status,'taken_self_reported')});
+test('escenario condicional exacto',()=>{let p=C.projection({cash:500,monthlyIncome:100,monthlyExpenses:90,exceptional:20,reserve:200,months:3});assert.equal(p.balance,510);assert.equal(p.aboveReserve,310)});
+test('escenario exige todos los datos',()=>assert.throws(()=>C.projection({cash:200}),/Dato faltante/));
+test('multimoneda no agrega monedas distintas',()=>{const s=newState();s.transactions.push({currency:'EUR',kind:'expense',amount:50},{currency:'ARS',kind:'expense',amount:50});assert.equal(C.moneyTotals(s,'EUR').expenses,50)});
+test('las búsquedas nunca aceptan javascript URL',()=>{assert.equal(C.safeWebURL('javascript:alert(1)'),null);assert.equal(C.safeWebURL('https://example.org/'),'https://example.org/')});
+test('información antigua ≠ reciente',()=>assert.equal(C.healthFresh({observedAt:'2024-01-01T00:00:00Z'},new Date('2026-11-03T00:00:00Z')).status,'stale'));
+test('capacidades no reclaman sensores reales ni SOS',()=>{assert.equal(C.capabilities().spse.remoteAlert,false);assert.equal(C.capabilities().findItems.realTagControl,false)});
